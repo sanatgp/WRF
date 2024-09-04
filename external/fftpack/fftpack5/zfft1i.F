@@ -11,7 +11,9 @@ subroutine zfft1i ( n, wsave, lensav, ier )
 !    call to ZFFT1B or ZFFT1F, and after whenever the value of integer
 !    N changes.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !

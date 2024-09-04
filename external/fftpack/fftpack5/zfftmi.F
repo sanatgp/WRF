@@ -10,7 +10,9 @@ subroutine zfftmi ( n, wsave, lensav, ier )
 !    ZFFTMB and ZFFTMF.  ZFFTMI must be called before the first call
 !    to ZFFTMB or ZFFTMF, and after whenever the value of integer N changes.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !

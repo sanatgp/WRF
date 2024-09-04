@@ -4,7 +4,9 @@ subroutine dfftb1 ( n, in, c, ch, wa, fac )
 !
 !! DFFTB1 is an FFTPACK5 auxiliary routine.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !

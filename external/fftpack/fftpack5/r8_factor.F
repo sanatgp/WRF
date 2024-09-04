@@ -4,7 +4,9 @@ subroutine r8_factor ( n, nf, fac )
 !
 !! R8_FACTOR factors of an integer for real double precision computations.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !

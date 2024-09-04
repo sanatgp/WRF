@@ -4,7 +4,9 @@ subroutine r8_mcfti1 ( n, wa, fnf, fac )
 !
 !! R8_MCFTI1 sets up factors and tables, real double precision arithmetic.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !

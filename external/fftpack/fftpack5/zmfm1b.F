@@ -4,7 +4,9 @@ subroutine zmfm1b ( lot, jump, n, inc, c, ch, wa, fnf, fac )
 !
 !! ZMFM1B is an FFTPACK5 auxiliary routine.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !

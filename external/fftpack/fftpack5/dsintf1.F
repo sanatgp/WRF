@@ -4,7 +4,9 @@ subroutine dsintf1 ( n, inc, x, wsave, xh, work, ier )
 !
 !! DSINTF1 is an FFTPACK5 auxiliary routine.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !

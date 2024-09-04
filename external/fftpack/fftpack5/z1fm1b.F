@@ -4,7 +4,9 @@ subroutine z1fm1b ( n, inc, c, ch, wa, fnf, fac )
 !
 !! Z1FM1B is an FFTPACK5 auxiliary routine.
 !
+!  License:
 !
+!    Licensed under the GNU General Public License (GPL).
 !
 !  Modified:
 !
