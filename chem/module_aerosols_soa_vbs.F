@@ -2173,222 +2173,132 @@ END SUBROUTINE aerostep
 !#######################################################################
 
 SUBROUTINE awater(irhx,mso4,mnh4,mno3,wh2o)
-! NOTE!!! wh2o is returned in micrograms / cubic meter
-!         mso4,mnh4,mno3 are in microMOLES / cubic meter
-
-!  This  version uses polynomials rather than tables, and uses empirical
-! polynomials for the mass fraction of solute (mfs) as a function of wat
-!   where:
-
-!            mfs = ms / ( ms + mw)
-!             ms is the mass of solute
-!             mw is the mass of water.
-
-!  Define y = mw/ ms
-
-!  then  mfs = 1 / (1 + y)
-
-!    y can then be obtained from the values of mfs as
-
-!             y = (1 - mfs) / mfs
-
-
-!     the aerosol is assumed to be in a metastable state if the rh is
-!     is below the rh of deliquescence, but above the rh of crystallizat
-
-!     ZSR interpolation is used for sulfates with x ( the molar ratio of
-!     ammonium to sulfate in eh range 0 <= x <= 2, by sections.
-!     section 1: 0 <= x < 1
-!     section 2: 1 <= x < 1.5
-!     section 3: 1.5 <= x < 2.0
-!     section 4: 2 <= x
-!     In sections 1 through 3, only the sulfates can affect the amount o
-!     on the particles.
-!     In section 4, we have fully neutralized sulfate, and extra ammoniu
-!     allows more nitrate to be present. Thus, the ammount of water is c
-!     using ZSR for ammonium sulfate and ammonium nitrate. Crystallizati
-!     assumed to occur in sections 2,3,and 4. See detailed discussion be
-
-! definitions:
-!     mso4, mnh4, and mno3 are the number of micromoles/(cubic meter of
-!      for sulfate, ammonium, and nitrate respectively
-!     irhx is the relative humidity (%)
-!     wh2o is the returned water amount in micrograms / cubic meter of a
-!     x is the molar ratio of ammonium to sulfate
-!     y0,y1,y1.5, y2 are the water contents in mass of water/mass of sol
-!     for pure aqueous solutions with x equal 1, 1.5, and 2 respectively
-!     y3 is the value of the mass ratio of water to solute for
-!     a pure ammonium nitrate  solution.
-
-!coded by Dr. Francis S. Binkowski, 4/8/96.
-
-!     IMPLICIT NONE
-      INTEGER irhx, irh
-      REAL mso4, mnh4, mno3
-      REAL tso4, tnh4, tno3, wh2o, x
-      REAL aw, awc
-!     REAL poly4, poly6
-      REAL mfs0, mfs1, mfs15, mfs2
-      REAL c0(4), c1(4), c15(4), c2(4)
-      REAL y, y0, y1, y15, y2, y3, y40, y140, y1540, yc
-      REAL kso4(6), kno3(6), mfsso4, mfsno3
-      REAL mwso4, mwnh4, mwno3, mw2, mwano3
-
-! *** molecular weights:
-      PARAMETER (mwso4=96.0636,mwnh4=18.0985,mwno3=62.0049, &
-        mw2=mwso4+2.0*mwnh4,mwano3=mwno3+mwnh4)
-
-!     The polynomials use data for aw as a function of mfs from Tang and
-!     Munkelwitz, JGR 99: 18801-18808, 1994.
-!     The polynomials were fit to Tang's values of water activity as a
-!     function of mfs.
-
-! *** coefficients of polynomials fit to Tang and Munkelwitz data
-!     now give mfs as a function of water activity.
-
+      ! NOTE!!! wh2o is returned in micrograms / cubic meter
+      !         mso4,mnh4,mno3 are in microMOLES / cubic meter
+      IMPLICIT NONE
+      
+      ! Original interface
+      INTEGER, INTENT(IN) :: irhx
+      REAL, INTENT(IN) :: mso4, mnh4, mno3
+      REAL, INTENT(OUT) :: wh2o
+      
+      ! Local variables
+      INTEGER :: irh
+      REAL :: tso4, tnh4, tno3, x
+      REAL :: aw, awc
+      REAL :: mfs0, mfs1, mfs15, mfs2
+      REAL :: y, y0, y1, y15, y2, y3, y40, y140, y1540, yc
+      REAL :: mfsso4, mfsno3
+      
+      ! Molecular weights as parameter
+      REAL, PARAMETER :: mwso4=96.0636, mwnh4=18.0985, mwno3=62.0049
+      REAL, PARAMETER :: mw2=mwso4+2.0*mwnh4, mwano3=mwno3+mwnh4
+      
+      ! Coefficient arrays
+      REAL :: c0(4), c1(4), c15(4), c2(4)
+      REAL :: kso4(6), kno3(6)
+      
+      ! DATA statements as in original
       DATA c1/0.9995178, -0.7952896, 0.99683673, -1.143874/
       DATA c15/1.697092, -4.045936, 5.833688, -3.463783/
       DATA c2/2.085067, -6.024139, 8.967967, -5.002934/
-
-! *** the following coefficients are a fit to the data in Table 1 of
-!     Nair & Vohra, J. Aerosol Sci., 6: 265-271, 1975
-!      data c0/0.8258941, -1.899205, 3.296905, -2.214749 /
-! *** New data fit to data from
-!       Nair and Vohra J. Aerosol Sci., 6: 265-271, 1975
-!       Giaque et al. J.Am. Chem. Soc., 82: 62-70, 1960
-!       Zeleznik J. Phys. Chem. Ref. Data, 20: 157-1200
       DATA c0/0.798079, -1.574367, 2.536686, -1.735297/
-
-! *** polynomials for ammonium nitrate and ammonium sulfate are from:
-!     Chan et al.1992, Atmospheric Environment (26A): 1661-1673.
-
       DATA kno3/0.2906, 6.83665, -26.9093, 46.6983, -38.803, 11.8837/
       DATA kso4/2.27515, -11.147, 36.3369, -64.2134, 56.8341, -20.0953/
-
-! *** check range of per cent relative humidity
-      irh = irhx
-      irh = max(1,irh)
-      irh = min(irh,100)
-      aw = float(irh)/ & ! water activity = fractional relative h
-        100.0
-      tso4 = max(mso4,0.0)
-      tnh4 = max(mnh4,0.0)
-      tno3 = max(mno3,0.0)
+  
+      !DIR$ VECTOR ALWAYS
+      
+      ! Check range of percent relative humidity
+      irh = MAX(1, MIN(irhx, 100))
+      aw = REAL(irh)/100.0
+      
+      ! Calculate temporary values with MAX
+      tso4 = MAX(mso4, 0.0)
+      tnh4 = MAX(mnh4, 0.0)
+      tno3 = MAX(mno3, 0.0)
+      
+      ! Initialize x
       x = 0.0
-! *** if there is non-zero sulfate calculate the molar ratio
-      IF (tso4>0.0) THEN
-        x = tnh4/tso4
-      ELSE
-! *** otherwise check for non-zero nitrate and ammonium
-        IF (tno3>0.0 .AND. tnh4>0.0) x = 10.0
+      IF (tso4 > 0.0) THEN
+          x = tnh4/tso4
+      ELSE IF (tno3 > 0.0 .AND. tnh4 > 0.0) THEN
+          x = 10.0
       END IF
-
-! *** begin screen on x for calculating wh2o
-      IF (x<1.0) THEN
-
-        mfs0 = poly4(c0,aw)
-        mfs1 = poly4(c1,aw)
-        y0 = (1.0-mfs0)/mfs0
-        y1 = (1.0-mfs1)/mfs1
-        y = (1.0-x)*y0 + x*y1
-
-      ELSE IF (x<1.5) THEN
-
-        IF (irh>=40) THEN
-          mfs1 = poly4(c1,aw)
-          mfs15 = poly4(c15,aw)
-          y1 = (1.0-mfs1)/mfs1
-          y15 = (1.0-mfs15)/mfs15
-          y = 2.0*(y1*(1.5-x)+y15*(x-1.0))
-        ELSE
-! *** set up for crystalization
-
-! *** Crystallization is done as follows:
-!      For 1.5 <= x, crystallization is assumed to occur at rh = 0.4
-!      For x <= 1.0, crystallization is assumed to occur at an rh < 0.01
-!      and since the code does not allow ar rh < 0.01, crystallization
-!      is assumed not to occur in this range.
-!      For 1.0 <= x <= 1.5 the crystallization curve is a straignt line
-!      from a value of y15 at rh = 0.4 to a value of zero at y1. From
-!      point B to point A in the diagram.
-!      The algorithm does a double interpolation to calculate the amount
-!      water.
-
-!        y1(0.40)               y15(0.40)
-!         +                     + Point B
-
-!         +--------------------+
-!       x=1                   x=1.5
-!      Point A
-
-          awc = 0.80*(x-1.0) ! rh along the crystallization curve.
-          y = 0.0
-          IF (aw>=awc) & ! interpolate using crystalization 
-              THEN
-            mfs1 = poly4(c1,0.40)
-            mfs15 = poly4(c15,0.40)
-            y140 = (1.0-mfs1)/mfs1
-            y1540 = (1.0-mfs15)/mfs15
-            y40 = 2.0*(y140*(1.5-x)+y1540*(x-1.0))
-            yc = 2.0*y1540*(x-1.0) ! y along crystallization cur
-            y = y40 - (y40-yc)*(0.40-aw)/(0.40-awc)
-! end of checking for aw                             
+  
+      ! Screen on x for calculating wh2o
+      IF (x < 1.0) THEN
+          mfs0 = poly4(c0, aw)
+          mfs1 = poly4(c1, aw)
+          y0 = (1.0 - mfs0)/mfs0
+          y1 = (1.0 - mfs1)/mfs1
+          y = (1.0 - x)*y0 + x*y1
+          
+      ELSE IF (x < 1.5) THEN
+          IF (irh >= 40) THEN
+              mfs1 = poly4(c1, aw)
+              mfs15 = poly4(c15, aw)
+              y1 = (1.0 - mfs1)/mfs1
+              y15 = (1.0 - mfs15)/mfs15
+              y = 2.0*(y1*(1.5 - x) + y15*(x - 1.0))
+          ELSE
+              ! Set up for crystallization
+              awc = 0.80*(x - 1.0)
+              y = 0.0
+              IF (aw >= awc) THEN
+                  mfs1 = poly4(c1, 0.40)
+                  mfs15 = poly4(c15, 0.40)
+                  y140 = (1.0 - mfs1)/mfs1
+                  y1540 = (1.0 - mfs15)/mfs15
+                  y40 = 2.0*(y140*(1.5 - x) + y1540*(x - 1.0))
+                  yc = 2.0*y1540*(x - 1.0)
+                  y = y40 - (y40 - yc)*(0.40 - aw)/(0.40 - awc)
+              END IF
           END IF
-
-        END IF
-! end of checking on irh                               
-      ELSE IF (x<1.9999) THEN
-
-        y = 0.0
-        IF (irh>=40) THEN
-          mfs15 = poly4(c15,aw)
-          mfs2 = poly4(c2,aw)
-          y15 = (1.0-mfs15)/mfs15
-          y2 = (1.0-mfs2)/mfs2
-          y = 2.0*(y15*(2.0-x)+y2*(x-1.5))
-
-        END IF
-
-! end of check for crystallization
-
+          
+      ELSE IF (x < 1.9999) THEN
+          y = 0.0
+          IF (irh >= 40) THEN
+              mfs15 = poly4(c15, aw)
+              mfs2 = poly4(c2, aw)
+              y15 = (1.0 - mfs15)/mfs15
+              y2 = (1.0 - mfs2)/mfs2
+              y = 2.0*(y15*(2.0 - x) + y2*(x - 1.5))
+          END IF
+          
       ELSE
-! regime where ammonium sulfate and ammonium nitrate are in solution.
-
-! *** following cf&s for both ammonium sulfate and ammonium nitrate
-! *** check for crystallization here. their data indicate a 40% value
-!     is appropriate.
-! 1.9999 < x                                                 
-        y2 = 0.0
-        y3 = 0.0
-        IF (irh>=40) THEN
-          mfsso4 = poly6(kso4,aw)
-          mfsno3 = poly6(kno3,aw)
-          y2 = (1.0-mfsso4)/mfsso4
-          y3 = (1.0-mfsno3)/mfsno3
-
-        END IF
-
+          ! Regime where ammonium sulfate and ammonium nitrate are in solution
+          y2 = 0.0
+          y3 = 0.0
+          IF (irh >= 40) THEN
+              mfsso4 = poly6(kso4, aw)
+              mfsno3 = poly6(kno3, aw)
+              y2 = (1.0 - mfsso4)/mfsso4
+              y3 = (1.0 - mfsno3)/mfsno3
+          END IF
       END IF
-! *** now set up output of wh2o
-
-!      wh2o units are micrograms (liquid water) / cubic meter of air
-
-! end of checking on x                                    
-      IF (x<1.9999) THEN
-
-        wh2o = y*(tso4*mwso4+mwnh4*tnh4)
-
+  
+      ! Set up output of wh2o
+      IF (x < 1.9999) THEN
+          wh2o = y*(tso4*mwso4 + mwnh4*tnh4)
       ELSE
-
-! *** this is the case that all the sulfate is ammonium sulfate
-!     and the excess ammonium forms ammonum nitrate
-
-        wh2o = y2*tso4*mw2 + y3*tno3*mwano3
-
+          wh2o = y2*tso4*mw2 + y3*tno3*mwano3
       END IF
-
-      RETURN
-    END SUBROUTINE awater
+  
+      CONTAINS
+          PURE FUNCTION poly4(c, x) RESULT(res)
+              REAL, INTENT(IN) :: c(4), x
+              REAL :: res
+              !DIR$ VECTOR ALIGNED
+              res = ((c(4)*x + c(3))*x + c(2))*x + c(1)
+          END FUNCTION poly4
+  
+          PURE FUNCTION poly6(k, x) RESULT(res)
+              REAL, INTENT(IN) :: k(6), x
+              REAL :: res
+              !DIR$ VECTOR ALIGNED
+              res = ((((k(6)*x + k(5))*x + k(4))*x + k(3))*x + k(2))*x + k(1)
+          END FUNCTION poly6
+  END SUBROUTINE awater
 !//////////////////////////////////////////////////////////////////////
 
     SUBROUTINE coagrate(blksize,nspcsda,numcells,cblk,blkta,pdensn,pdensa,amu, &
